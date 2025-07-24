@@ -47,7 +47,7 @@ if st.session_state.balance is None:
         st.session_state.meta_diaria = banca_inicial * 0.5  # Meta = 50% da banca
         st.session_state.meta_periodo = st.session_state.meta_diaria / 3
         st.session_state.stop_loss = banca_inicial * 0.1  # Stop = 10% da banca
-        st.experimental_rerun()  # 🔥 Atualiza para exibir o painel completo
+        st.rerun()  # ✅ Atualiza para exibir o painel completo
     st.stop()
 
 # ===============================
