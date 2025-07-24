@@ -1,5 +1,10 @@
 import streamlit as st
-import matplotlib.pyplot as plt
+
+try:
+    import matplotlib.pyplot as plt
+    has_matplotlib = True
+except ImportError:
+    has_matplotlib = False
 
 # ===============================
 # CONFIGURAÇÃO INICIAL
@@ -37,6 +42,12 @@ def draw_history_balls(history):
     if not history:
         st.info("Nenhum resultado registrado ainda.")
         return
+    if not has_matplotlib:
+        st.warning("Para visualizar o histórico com bolinhas, instale 'matplotlib'")
+        st.write("Histórico simples:")
+        st.write(" ".join(history))
+        return
+
     fig, ax = plt.subplots(figsize=(7, len(history)//9 + 1))
     ax.axis("off")
     rows = [history[i:i+9] for i in range(0, len(history), 9)]
@@ -143,8 +154,11 @@ with col_g2:
         st.session_state.bank_chart.append(st.session_state.balance)
 
 # Gráfico de evolução da banca
-st.subheader("📈 Evolução da Banca")
-st.line_chart(st.session_state.bank_chart)
+if has_matplotlib:
+    st.subheader("📈 Evolução da Banca")
+    st.line_chart(st.session_state.bank_chart)
+else:
+    st.info("Para ver gráfico da banca, instale 'matplotlib'.")
 
 # Botão próximo período
 if st.button("🔄 Próximo Período"):
