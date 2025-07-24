@@ -17,7 +17,7 @@ st.set_page_config(page_title="Painel Football Studio PRO", layout="centered")
 if "history" not in st.session_state:
     st.session_state.history = []
 if "balance" not in st.session_state:
-    st.session_state.balance = 100.0
+    st.session_state.balance = None
 if "profit" not in st.session_state:
     st.session_state.profit = 0.0
 if "period" not in st.session_state:
@@ -25,15 +25,30 @@ if "period" not in st.session_state:
 if "locked" not in st.session_state:
     st.session_state.locked = False
 if "bank_chart" not in st.session_state:
-    st.session_state.bank_chart = [100.0]
+    st.session_state.bank_chart = []
+if "meta_diaria" not in st.session_state:
+    st.session_state.meta_diaria = 0.0
+if "meta_periodo" not in st.session_state:
+    st.session_state.meta_periodo = 0.0
+if "stop_loss" not in st.session_state:
+    st.session_state.stop_loss = 0.0
 
 # ===============================
-# CONFIGURAÇÕES DE META
+# DEFINIR BANCA INICIAL
 # ===============================
-DAILY_GOAL = 50.0
-PERIODS = ["Manhã", "Tarde", "Noite"]
-PERIOD_GOAL = DAILY_GOAL / 3
-STOP_LOSS = 10.0
+st.title("⚽ Painel Football Studio PRO")
+
+if st.session_state.balance is None:
+    st.subheader("💵 Configure sua Banca Inicial")
+    banca_inicial = st.number_input("Informe sua banca inicial (R$)", min_value=50.0, value=100.0, step=10.0)
+    if st.button("Confirmar Banca"):
+        st.session_state.balance = banca_inicial
+        st.session_state.bank_chart = [banca_inicial]
+        st.session_state.meta_diaria = banca_inicial * 0.5  # meta = 50% da banca
+        st.session_state.meta_periodo = st.session_state.meta_diaria / 3
+        st.session_state.stop_loss = banca_inicial * 0.1  # stop = 10% da banca
+        st.success(f"Banca inicial definida: R${banca_inicial:.2f}")
+    st.stop()
 
 # ===============================
 # FUNÇÕES
@@ -92,10 +107,10 @@ def suggest_entry(next_move, confidence):
         return "⏳ Aguardar próximo sinal"
 
 def check_limits():
-    if st.session_state.profit >= PERIOD_GOAL:
+    if st.session_state.profit >= st.session_state.meta_periodo:
         st.session_state.locked = True
         return "✅ Meta do período atingida!"
-    elif st.session_state.profit <= -STOP_LOSS:
+    elif st.session_state.profit <= -st.session_state.stop_loss:
         st.session_state.locked = True
         return "❌ Stop Loss atingido!"
     return None
@@ -103,10 +118,10 @@ def check_limits():
 # ===============================
 # INTERFACE PRINCIPAL
 # ===============================
-st.title("⚽ Painel Football Studio PRO")
 st.write(f"**Período Atual:** {st.session_state.period}")
 st.write(f"**Banca:** R${st.session_state.balance:.2f} | Lucro do período: R${st.session_state.profit:.2f}")
-st.progress(min(st.session_state.profit / PERIOD_GOAL, 1.0))
+st.write(f"**Meta por período:** R${st.session_state.meta_periodo:.2f} | Stop Loss: R${st.session_state.stop_loss:.2f}")
+st.progress(min(st.session_state.profit / st.session_state.meta_periodo, 1.0))
 
 limit_msg = check_limits()
 if limit_msg:
