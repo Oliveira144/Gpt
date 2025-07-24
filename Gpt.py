@@ -43,17 +43,20 @@ def draw_history_balls(history):
         st.info("Nenhum resultado registrado ainda.")
         return
     if not has_matplotlib:
-        st.warning("Para visualizar o histórico com bolinhas, instale 'matplotlib'")
-        st.write("Histórico simples:")
-        st.write(" ".join(history))
+        st.warning("Para visualizar com bolinhas, instale 'matplotlib'")
+        st.write("Histórico simples (mais recente à esquerda):")
+        st.write(" ".join(history[::-1]))  # inverter ordem
         return
 
     fig, ax = plt.subplots(figsize=(8, 5))
     ax.axis("off")
 
-    # Quebrar histórico em linhas de 9 elementos (da esquerda para direita)
-    rows = [history[i:i+9] for i in range(0, len(history), 9)]
-    rows = rows[-10:]  # manter no máximo 10 linhas
+    # Inverter histórico (mais recente à esquerda)
+    reversed_history = history[::-1]
+
+    # Dividir em linhas de até 9 elementos
+    rows = [reversed_history[i:i+9] for i in range(0, len(reversed_history), 9)]
+    rows = rows[:10]  # manter no máximo 10 linhas
 
     for r, row in enumerate(rows):
         for c, val in enumerate(row):
@@ -124,8 +127,8 @@ if not st.session_state.locked:
 else:
     st.warning("Sugestões bloqueadas neste período.")
 
-# Histórico visual (agora horizontal da esquerda para direita)
-st.subheader("📜 Histórico Visual (Esquerda → Direita)")
+# Histórico visual
+st.subheader("📜 Histórico Visual (Mais recente à esquerda)")
 draw_history_balls(st.session_state.history)
 
 # Análise
