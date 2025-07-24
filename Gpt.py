@@ -32,6 +32,8 @@ if "meta_periodo" not in st.session_state:
     st.session_state.meta_periodo = 0.0
 if "stop_loss" not in st.session_state:
     st.session_state.stop_loss = 0.0
+if "valor_aposta" not in st.session_state:
+    st.session_state.valor_aposta = 2.50
 
 # ===============================
 # DEFINIR BANCA INICIAL
@@ -47,7 +49,7 @@ if st.session_state.balance is None:
         st.session_state.meta_diaria = banca_inicial * 0.5  # Meta = 50% da banca
         st.session_state.meta_periodo = st.session_state.meta_diaria / 3
         st.session_state.stop_loss = banca_inicial * 0.1  # Stop = 10% da banca
-        st.rerun()  # ✅ Atualiza para exibir o painel completo
+        st.rerun()
     st.stop()
 
 # ===============================
@@ -118,14 +120,29 @@ def check_limits():
 # ===============================
 # INTERFACE PRINCIPAL
 # ===============================
-st.write(f"**Período Atual:** {st.session_state.period}")
-st.write(f"**Banca:** R${st.session_state.balance:.2f} | Lucro do período: R${st.session_state.profit:.2f}")
-st.write(f"**Meta por período:** R${st.session_state.meta_periodo:.2f} | Stop Loss: R${st.session_state.stop_loss:.2f}")
+st.subheader("📊 Status da Operação")
+col1, col2, col3 = st.columns(3)
+with col1:
+    st.metric("Período", st.session_state.period)
+with col2:
+    st.metric("Banca", f"R${st.session_state.balance:.2f}")
+with col3:
+    st.metric("Lucro", f"R${st.session_state.profit:.2f}")
+
+col4, col5 = st.columns(2)
+with col4:
+    st.metric("Meta Período", f"R${st.session_state.meta_periodo:.2f}")
+with col5:
+    st.metric("Stop Loss", f"R${st.session_state.stop_loss:.2f}")
+
 st.progress(min(st.session_state.profit / st.session_state.meta_periodo, 1.0))
 
 limit_msg = check_limits()
 if limit_msg:
     st.error(limit_msg)
+
+# Seletor de valor de aposta
+st.session_state.valor_aposta = st.radio("Valor da Aposta", [2.50, 5.00], horizontal=True)
 
 # Botões de resultados
 if not st.session_state.locked:
@@ -165,14 +182,14 @@ else:
 st.subheader("💰 Controle de Lucro")
 col_g1, col_g2 = st.columns(2)
 with col_g1:
-    if st.button("+ Ganhou R$2"):
-        st.session_state.profit += 2
-        st.session_state.balance += 2
+    if st.button(f"+ Ganhou R${st.session_state.valor_aposta}"):
+        st.session_state.profit += st.session_state.valor_aposta
+        st.session_state.balance += st.session_state.valor_aposta
         st.session_state.bank_chart.append(st.session_state.balance)
 with col_g2:
-    if st.button("- Perdeu R$2"):
-        st.session_state.profit -= 2
-        st.session_state.balance -= 2
+    if st.button(f"- Perdeu R${st.session_state.valor_aposta}"):
+        st.session_state.profit -= st.session_state.valor_aposta
+        st.session_state.balance -= st.session_state.valor_aposta
         st.session_state.bank_chart.append(st.session_state.balance)
 
 # Evolução da banca
