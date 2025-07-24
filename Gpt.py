@@ -2,14 +2,20 @@ import streamlit as st
 import matplotlib.pyplot as plt
 from collections import Counter
 
-# ===============================
-# CONFIGURAÇÕES INICIAIS
-# ===============================
+===============================
+
+CONFIGURAÇÕES INICIAIS
+
+===============================
+
 st.set_page_config(page_title="Painel Football Studio PRO", layout="centered")
 
-# ===============================
-# ESTADO DA SESSÃO
-# ===============================
+===============================
+
+ESTADO DA SESSÃO
+
+===============================
+
 if "history" not in st.session_state:
     st.session_state.history = []
 if "balance" not in st.session_state:
@@ -31,15 +37,18 @@ if "stop_loss" not in st.session_state:
 if "valor_aposta" not in st.session_state:
     st.session_state.valor_aposta = 0.0
 if "odd" not in st.session_state:
-    st.session_state.odd = 1.96  # Odd padrão
+    st.session_state.odd = 1.96
 if "prev_sinal" not in st.session_state:
-    st.session_state.prev_sinal = None  # Para IA adaptativa
+    st.session_state.prev_sinal = None
 if "ajuste_conf" not in st.session_state:
-    st.session_state.ajuste_conf = 0  # Ajuste adaptativo
+    st.session_state.ajuste_conf = 0
 
-# ===============================
-# CONFIGURAR BANCA E META
-# ===============================
+===============================
+
+CONFIGURAR BANCA E META
+
+===============================
+
 st.title("⚽ Painel Football Studio PRO")
 
 if st.session_state.balance is None:
@@ -56,9 +65,12 @@ if st.session_state.balance is None:
         st.rerun()
     st.stop()
 
-# ===============================
-# FUNÇÕES
-# ===============================
+===============================
+
+FUNÇÕES
+
+===============================
+
 def draw_history_balls(history):
     if not history:
         st.info("Nenhum resultado registrado ainda.")
@@ -66,7 +78,7 @@ def draw_history_balls(history):
 
     fig, ax = plt.subplots(figsize=(8, 6))  
     ax.axis("off")  
-    
+
     reversed_history = history[::-1]  
     rows = [reversed_history[i:i+9] for i in range(0, len(reversed_history), 9)]  
     rows = rows[:10]  
@@ -112,7 +124,6 @@ def gerar_previsao(history):
     sorted_probs = sorted(probs.items(), key=lambda x: x[1], reverse=True)
 
     next_move, confidence = sorted_probs[0][0], round(sorted_probs[0][1], 2)  
-    # IA adaptativa: ajuste baseado no último sinal falho  
     if st.session_state.prev_sinal and st.session_state.prev_sinal != next_move:  
         confidence = max(confidence - 5, 40)  
 
@@ -137,9 +148,12 @@ def check_limits():
         return "❌ Stop Loss atingido!"
     return None
 
-# ===============================
-# INTERFACE PRINCIPAL
-# ===============================
+===============================
+
+INTERFACE PRINCIPAL
+
+===============================
+
 st.subheader("📊 Status da Operação")
 col1, col2, col3 = st.columns(3)
 with col1:
@@ -161,11 +175,13 @@ msg = check_limits()
 if msg:
     st.error(msg)
 
-# Histórico
+Histórico
+
 st.subheader("📜 Histórico (10x9)")
 draw_history_balls(st.session_state.history)
 
-# Botões registrar resultado
+Botões registrar resultado
+
 st.subheader("🎮 Registrar Resultado")
 if not st.session_state.locked:
     colb1, colb2, colb3 = st.columns(3)
@@ -181,7 +197,8 @@ if not st.session_state.locked:
 else:
     st.warning("Entradas bloqueadas (meta/stop atingido)")
 
-# Análise avançada
+Análise avançada
+
 st.subheader("🔍 Análise Avançada")
 nivel, alerta = nivel_manipulacao(st.session_state.history)
 st.write(f"Nível de Manipulação: {nivel}/9 ({alerta})")
@@ -192,7 +209,8 @@ st.write(f"Cenários: {opcoes}")
 if not st.session_state.locked:
     st.write(sugestao(next_move, confidence))
 
-# Controle de ganho/perda
+Controle de ganho/perda
+
 st.subheader("💰 Atualizar Banca")
 col_g1, col_g2 = st.columns(2)
 valor = st.session_state.valor_aposta
@@ -211,11 +229,13 @@ with col_g2:
         st.session_state.prev_sinal = next_move
         st.session_state.bank_chart.append(st.session_state.balance)
 
-# Gráfico da banca
+Gráfico da banca
+
 st.subheader("📈 Evolução da Banca")
 st.line_chart(st.session_state.bank_chart)
 
-# Controles
+Controles
+
 if st.button("🔄 Próximo Período"):
     if st.session_state.period == "Manhã":
         st.session_state.period = "Tarde"
