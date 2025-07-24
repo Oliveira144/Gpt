@@ -48,14 +48,19 @@ def draw_history_balls(history):
         st.write(" ".join(history))
         return
 
-    fig, ax = plt.subplots(figsize=(7, len(history)//9 + 1))
+    fig, ax = plt.subplots(figsize=(8, 5))
     ax.axis("off")
+
+    # Quebrar histórico em linhas de 9 elementos (da esquerda para direita)
     rows = [history[i:i+9] for i in range(0, len(history), 9)]
+    rows = rows[-10:]  # manter no máximo 10 linhas
+
     for r, row in enumerate(rows):
         for c, val in enumerate(row):
             color = "red" if val == "🔴" else "blue" if val == "🔵" else "gold"
             circle = plt.Circle((c, -r), 0.4, color=color)
             ax.add_patch(circle)
+
     ax.set_xlim(-1, 9)
     ax.set_ylim(-len(rows), 1)
     st.pyplot(fig)
@@ -100,7 +105,6 @@ st.write(f"**Período Atual:** {st.session_state.period}")
 st.write(f"**Banca:** R${st.session_state.balance:.2f} | Lucro do período: R${st.session_state.profit:.2f}")
 st.progress(min(st.session_state.profit / PERIOD_GOAL, 1.0))
 
-# Alertas de meta ou stop
 limit_msg = check_limits()
 if limit_msg:
     st.error(limit_msg)
@@ -120,11 +124,11 @@ if not st.session_state.locked:
 else:
     st.warning("Sugestões bloqueadas neste período.")
 
-# Histórico visual
-st.subheader("📜 Histórico Visual")
+# Histórico visual (agora horizontal da esquerda para direita)
+st.subheader("📜 Histórico Visual (Esquerda → Direita)")
 draw_history_balls(st.session_state.history)
 
-# Análise inteligente
+# Análise
 pattern, next_move, confidence, level, alert = detect_pattern(st.session_state.history)
 st.subheader("🔍 Análise Inteligente")
 st.write(f"**Padrão Detectado:** {pattern}")
@@ -132,7 +136,7 @@ st.write(f"**Próxima Tendência:** {next_move} ({confidence}%)")
 st.write(f"**Alerta:** {alert}")
 st.write(f"**Nível de Manipulação:** {level}/9")
 
-# Sugestão de entrada
+# Sugestão
 st.subheader("🎯 Sugestão")
 if not st.session_state.locked:
     st.write(suggest_entry(next_move, confidence))
@@ -153,7 +157,7 @@ with col_g2:
         st.session_state.balance -= 2
         st.session_state.bank_chart.append(st.session_state.balance)
 
-# Gráfico de evolução da banca
+# Evolução da banca
 if has_matplotlib:
     st.subheader("📈 Evolução da Banca")
     st.line_chart(st.session_state.bank_chart)
