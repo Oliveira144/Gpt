@@ -1,13 +1,9 @@
 import streamlit as st
-
-try:
-    import matplotlib.pyplot as plt
-    has_matplotlib = True
-except ImportError:
-    has_matplotlib = False
+import matplotlib.pyplot as plt
+from collections import Counter
 
 # ===============================
-# CONFIGURAÇÃO INICIAL
+# CONFIGURAÇÕES INICIAIS
 # ===============================
 st.set_page_config(page_title="Painel Football Studio PRO", layout="centered")
 
@@ -33,22 +29,30 @@ if "meta_periodo" not in st.session_state:
 if "stop_loss" not in st.session_state:
     st.session_state.stop_loss = 0.0
 if "valor_aposta" not in st.session_state:
-    st.session_state.valor_aposta = 2.50
+    st.session_state.valor_aposta = 0.0
+if "odd" not in st.session_state:
+    st.session_state.odd = 1.96  # Odd padrão
+if "prev_sinal" not in st.session_state:
+    st.session_state.prev_sinal = None  # Para IA adaptativa
+if "ajuste_conf" not in st.session_state:
+    st.session_state.ajuste_conf = 0  # Ajuste adaptativo
 
 # ===============================
-# DEFINIR BANCA INICIAL
+# CONFIGURAR BANCA E META
 # ===============================
 st.title("⚽ Painel Football Studio PRO")
 
 if st.session_state.balance is None:
-    st.subheader("💵 Configure sua Banca Inicial")
-    banca_inicial = st.number_input("Informe sua banca inicial (R$)", min_value=50.0, value=100.0, step=10.0)
-    if st.button("✅ Confirmar Banca"):
+    st.subheader("💵 Configure sua Banca e Meta")
+    banca_inicial = st.number_input("Informe sua banca inicial (R$)", min_value=50.0, value=200.0, step=10.0)
+    meta_diaria = st.number_input("Informe sua meta de lucro diário (R$)", min_value=10.0, value=90.0, step=5.0)
+    if st.button("✅ Confirmar"):
         st.session_state.balance = banca_inicial
         st.session_state.bank_chart = [banca_inicial]
-        st.session_state.meta_diaria = banca_inicial * 0.5  # Meta = 50% da banca
-        st.session_state.meta_periodo = st.session_state.meta_diaria / 3
-        st.session_state.stop_loss = banca_inicial * 0.1  # Stop = 10% da banca
+        st.session_state.meta_diaria = meta_diaria
+        st.session_state.meta_periodo = meta_diaria / 3
+        st.session_state.stop_loss = banca_inicial * 0.1
+        st.session_state.valor_aposta = round((st.session_state.meta_periodo / 10) / (st.session_state.odd - 1), 2)
         st.rerun()
     st.stop()
 
@@ -59,21 +63,13 @@ def draw_history_balls(history):
     if not history:
         st.info("Nenhum resultado registrado ainda.")
         return
-    if not has_matplotlib:
-        st.warning("Para visualizar com bolinhas, instale 'matplotlib'")
-        st.write("Histórico simples (mais recente à esquerda):")
-        st.write(" ".join(history[::-1]))  # inverter ordem
-        return
 
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=(8, 6))
     ax.axis("off")
 
-    # Inverter histórico (mais recente à esquerda)
     reversed_history = history[::-1]
-
-    # Dividir em linhas de até 9 elementos
     rows = [reversed_history[i:i+9] for i in range(0, len(reversed_history), 9)]
-    rows = rows[:10]  # manter no máximo 10 linhas
+    rows = rows[:10]
 
     for r, row in enumerate(rows):
         for c, val in enumerate(row):
@@ -85,26 +81,50 @@ def draw_history_balls(history):
     ax.set_ylim(-len(rows), 1)
     st.pyplot(fig)
 
-def detect_pattern(history):
-    if len(history) < 3:
-        return "Padrão insuficiente", "-", 0, 1, "Zona neutra"
-    last = history[-1]
-    pattern, next_move, confidence, level, alert = "Indefinido", "?", 50, 1, "Zona neutra"
-    if len(history) >= 4 and len(set(history[-4:])) == 1:
-        pattern, next_move, confidence, level, alert = "Sequência Longa", ("🔵" if last == "🔴" else "🔴"), 80, 2, "Quebra próxima!"
-    elif len(history) >= 5 and history[-5:] in (["🔴","🔵","🔴","🔵","🔴"], ["🔵","🔴","🔵","🔴","🔵"]):
-        pattern, next_move, confidence, level, alert = "Alternância", last, 70, 3, "Quebra de alternância!"
-    elif last == "🟨":
-        pattern, next_move, confidence, level, alert = "Empate Estratégico", "Aguardar", 50, 4, "Reset provável!"
-    elif len(history) >= 6 and history[-2:] in (["🔵","🔵"], ["🔴","🔴"]):
-        pattern, next_move, confidence, level, alert = "Virada", last, 75, 6, "Virada confirmada!"
-    return pattern, next_move, confidence, level, alert
+def calcular_probabilidade(history):
+    sample = history[-18:] if len(history) >= 18 else history
+    if not sample:
+        return {"🔴": 33.3, "🔵": 33.3, "🟨": 33.3}
 
-def suggest_entry(next_move, confidence):
-    if confidence >= 75 and next_move in ["🔴","🔵"]:
-        return f"✅ Entrar em {next_move} (Confiança {confidence}%)"
-    elif 60 <= confidence < 75:
-        return f"⚠ Entrada arriscada: {next_move} ({confidence}%)"
+    total = len(sample)
+    contagem = Counter(sample)
+    probs = {
+        "🔴": (contagem.get("🔴", 0) / total) * 100,
+        "🔵": (contagem.get("🔵", 0) / total) * 100,
+        "🟨": (contagem.get("🟨", 0) / total) * 100
+    }
+    return probs
+
+def nivel_manipulacao(history):
+    sample = history[-18:]
+    if len(sample) < 6:
+        return 1, "Poucos dados"
+    if len(set(sample[-5:])) == 1:
+        return 7, "Surf longo, possível quebra"
+    if sample[-5:] in (["🔴","🔵","🔴","🔵","🔴"], ["🔵","🔴","🔵","🔴","🔵"]):
+        return 4, "Alternância contínua"
+    if "🟨" in sample[-3:]:
+        return 6, "Empate como âncora"
+    return 3, "Zona neutra"
+
+def gerar_previsao(history):
+    probs = calcular_probabilidade(history)
+    sorted_probs = sorted(probs.items(), key=lambda x: x[1], reverse=True)
+
+    next_move, confidence = sorted_probs[0][0], round(sorted_probs[0][1], 2)
+    # IA adaptativa: ajuste baseado no último sinal falho
+    if st.session_state.prev_sinal and st.session_state.prev_sinal != next_move:
+        confidence = max(confidence - 5, 40)
+
+    opcoes = " | ".join([f"{k} ({round(v, 1)}%)" for k, v in sorted_probs])
+    return next_move, confidence, opcoes
+
+def sugestao(next_move, confidence):
+    valor = st.session_state.valor_aposta
+    lucro = round(valor * (st.session_state.odd - 1), 2)
+    retorno = round(valor + lucro, 2)
+    if confidence >= 60:
+        return f"✅ Entrar em {next_move} | Aposta: R${valor} | Lucro: R${lucro} | Retorno: R${retorno}"
     else:
         return "⏳ Aguardar próximo sinal"
 
@@ -137,69 +157,65 @@ with col5:
 
 st.progress(min(st.session_state.profit / st.session_state.meta_periodo, 1.0))
 
-limit_msg = check_limits()
-if limit_msg:
-    st.error(limit_msg)
+msg = check_limits()
+if msg:
+    st.error(msg)
 
-# Seletor de valor de aposta
-st.session_state.valor_aposta = st.radio("Valor da Aposta", [2.50, 5.00], horizontal=True)
+# Histórico
+st.subheader("📜 Histórico (10x9)")
+draw_history_balls(st.session_state.history)
 
-# Botões de resultados
+# Botões registrar resultado
+st.subheader("🎮 Registrar Resultado")
 if not st.session_state.locked:
-    col1, col2, col3 = st.columns(3)
-    with col1:
+    colb1, colb2, colb3 = st.columns(3)
+    with colb1:
         if st.button("🔴 Home"):
             st.session_state.history.append("🔴")
-    with col2:
+    with colb2:
         if st.button("🔵 Away"):
             st.session_state.history.append("🔵")
-    with col3:
+    with colb3:
         if st.button("🟨 Empate"):
             st.session_state.history.append("🟨")
 else:
-    st.warning("Sugestões bloqueadas neste período.")
+    st.warning("Entradas bloqueadas (meta/stop atingido)")
 
-# Histórico visual
-st.subheader("📜 Histórico Visual (Mais recente à esquerda)")
-draw_history_balls(st.session_state.history)
+# Análise avançada
+st.subheader("🔍 Análise Avançada")
+nivel, alerta = nivel_manipulacao(st.session_state.history)
+st.write(f"**Nível de Manipulação:** {nivel}/9 ({alerta})")
 
-# Análise
-pattern, next_move, confidence, level, alert = detect_pattern(st.session_state.history)
-st.subheader("🔍 Análise Inteligente")
-st.write(f"**Padrão Detectado:** {pattern}")
-st.write(f"**Próxima Tendência:** {next_move} ({confidence}%)")
-st.write(f"**Alerta:** {alert}")
-st.write(f"**Nível de Manipulação:** {level}/9")
-
-# Sugestão
-st.subheader("🎯 Sugestão")
+next_move, confidence, opcoes = gerar_previsao(st.session_state.history)
+st.write(f"**Próxima tendência:** {next_move} ({confidence}%)")
+st.write(f"**Cenários:** {opcoes}")
 if not st.session_state.locked:
-    st.write(suggest_entry(next_move, confidence))
-else:
-    st.write("⛔ Bloqueado - Meta/Stop atingido")
+    st.write(sugestao(next_move, confidence))
 
-# Controle de ganhos/perdas
-st.subheader("💰 Controle de Lucro")
+# Controle de ganho/perda
+st.subheader("💰 Atualizar Banca")
 col_g1, col_g2 = st.columns(2)
+valor = st.session_state.valor_aposta
+lucro_entrada = round(valor * (st.session_state.odd - 1), 2)
+
 with col_g1:
-    if st.button(f"+ Ganhou R${st.session_state.valor_aposta}"):
-        st.session_state.profit += st.session_state.valor_aposta
-        st.session_state.balance += st.session_state.valor_aposta
+    if st.button("✅ Ganhou"):
+        st.session_state.profit += lucro_entrada
+        st.session_state.balance += lucro_entrada
+        st.session_state.prev_sinal = next_move
         st.session_state.bank_chart.append(st.session_state.balance)
 with col_g2:
-    if st.button(f"- Perdeu R${st.session_state.valor_aposta}"):
-        st.session_state.profit -= st.session_state.valor_aposta
-        st.session_state.balance -= st.session_state.valor_aposta
+    if st.button("❌ Perdeu"):
+        st.session_state.profit -= valor
+        st.session_state.balance -= valor
+        st.session_state.prev_sinal = next_move
         st.session_state.bank_chart.append(st.session_state.balance)
 
-# Evolução da banca
-if has_matplotlib:
-    st.subheader("📈 Evolução da Banca")
-    st.line_chart(st.session_state.bank_chart)
-else:
-    st.info("Para ver gráfico da banca, instale 'matplotlib'.")
+# Gráfico da banca
+st.subheader("📈 Evolução da Banca")
+st.line_chart(st.session_state.bank_chart)
 
-# Botão próximo período
+# Controles
 if st.button("🔄 Próximo Período"):
     if st.session_state.period == "Manhã":
         st.session_state.period = "Tarde"
@@ -211,8 +227,6 @@ if st.button("🔄 Próximo Período"):
     st.session_state.locked = False
     st.success("Novo período iniciado!")
 
-# Reset geral
 if st.button("🗑 Limpar Histórico"):
     st.session_state.history = []
-    st.session_state.bank_chart = [st.session_state.balance]
     st.success("Histórico limpo!")
