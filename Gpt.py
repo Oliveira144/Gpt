@@ -36,6 +36,8 @@ if "prev_sinal" not in st.session_state:
     st.session_state.prev_sinal = None  # Para IA adaptativa
 if "ajuste_conf" not in st.session_state:
     st.session_state.ajuste_conf = 0  # Ajuste adaptativo
+if "resultado_registrado" not in st.session_state:
+    st.session_state.resultado_registrado = False  # Controle para bloquear botões após clicar
 
 # ===============================
 # CONFIGURAR BANCA E META
@@ -46,15 +48,25 @@ if st.session_state.balance is None:
     st.subheader("💵 Configure sua Banca e Meta")
     banca_inicial = st.number_input("Informe sua banca inicial (R$)", min_value=50.0, value=200.0, step=10.0)
     meta_diaria = st.number_input("Informe sua meta de lucro diário (R$)", min_value=10.0, value=90.0, step=5.0)
-    if st.button("✅ Confirmar"):
+    confirmar = st.button("✅ Confirmar")
+    if confirmar:
         st.session_state.balance = banca_inicial
         st.session_state.bank_chart = [banca_inicial]
         st.session_state.meta_diaria = meta_diaria
         st.session_state.meta_periodo = meta_diaria / 3
         st.session_state.stop_loss = banca_inicial * 0.1
         st.session_state.valor_aposta = round((st.session_state.meta_periodo / 10) / (st.session_state.odd - 1), 2)
-        st.rerun()
+        st.session_state.resultado_registrado = False
+        st.success("Configuração salva com sucesso!")
+        st.experimental_rerun()
     st.stop()
+else:
+    st.subheader("💵 Configuração atual")
+    st.write(f"- **Banca inicial:** R${st.session_state.balance:.2f}")
+    st.write(f"- **Meta diária:** R${st.session_state.meta_diaria:.2f}")
+    st.write(f"- **Meta período:** R${st.session_state.meta_periodo:.2f}")
+    st.write(f"- **Stop Loss:** R${st.session_state.stop_loss:.2f}")
+    st.write(f"- **Valor da aposta:** R${st.session_state.valor_aposta:.2f}")
 
 # ===============================
 # FUNÇÕES
@@ -101,7 +113,7 @@ def nivel_manipulacao(history):
         return 1, "Poucos dados"
     if len(set(sample[-5:])) == 1:
         return 7, "Surf longo, possível quebra"
-    if sample[-5:] in (["🔴","🔵","🔴","🔵","🔴"], ["🔵","🔴","🔵","🔴","🔵"]):
+    if sample[-5:] == ["🔴","🔵","🔴","🔵","🔴"] or sample[-5:] == ["🔵","🔴","🔵","🔴","🔵"]:
         return 4, "Alternância contínua"
     if "🟨" in sample[-3:]:
         return 6, "Empate como âncora"
@@ -167,19 +179,25 @@ draw_history_balls(st.session_state.history)
 
 # Botões registrar resultado
 st.subheader("🎮 Registrar Resultado")
-if not st.session_state.locked:
+
+if not st.session_state.locked and not st.session_state.resultado_registrado:
     colb1, colb2, colb3 = st.columns(3)
     with colb1:
         if st.button("🔴 Home"):
             st.session_state.history.append("🔴")
+            st.session_state.resultado_registrado = True
     with colb2:
         if st.button("🔵 Away"):
             st.session_state.history.append("🔵")
+            st.session_state.resultado_registrado = True
     with colb3:
         if st.button("🟨 Empate"):
             st.session_state.history.append("🟨")
-else:
+            st.session_state.resultado_registrado = True
+elif st.session_state.locked:
     st.warning("Entradas bloqueadas (meta/stop atingido)")
+else:
+    st.info("Aguarde atualização da banca para registrar novo resultado")
 
 # Análise avançada
 st.subheader("🔍 Análise Avançada")
@@ -204,12 +222,14 @@ with col_g1:
         st.session_state.balance += lucro_entrada
         st.session_state.prev_sinal = next_move
         st.session_state.bank_chart.append(st.session_state.balance)
+        st.session_state.resultado_registrado = False
 with col_g2:
     if st.button("❌ Perdeu"):
         st.session_state.profit -= valor
         st.session_state.balance -= valor
         st.session_state.prev_sinal = next_move
         st.session_state.bank_chart.append(st.session_state.balance)
+        st.session_state.resultado_registrado = False
 
 # Gráfico da banca
 st.subheader("📈 Evolução da Banca")
@@ -225,8 +245,17 @@ if st.button("🔄 Próximo Período"):
         st.session_state.period = "Encerrado"
     st.session_state.profit = 0
     st.session_state.locked = False
+    st.session_state.prev_sinal = None
+    st.session_state.resultado_registrado = False
     st.success("Novo período iniciado!")
 
 if st.button("🗑 Limpar Histórico"):
     st.session_state.history = []
-    st.success("Histórico limpo!")
+    st.session_state.balance = None
+    st.session_state.profit = 0.0
+    st.session_state.bank_chart = []
+    st.session_state.locked = False
+    st.session_state.prev_sinal = None
+    st.session_state.resultado_registrado = False
+    st.success("Histórico e configurações reiniciados! Reconfigure banca e meta.")
+    st.experimental_rerun()
