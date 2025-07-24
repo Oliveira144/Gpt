@@ -33,11 +33,9 @@ if "valor_aposta" not in st.session_state:
 if "odd" not in st.session_state:
     st.session_state.odd = 1.96  # Odd padrão
 if "prev_sinal" not in st.session_state:
-    st.session_state.prev_sinal = None  # Para IA adaptativa
-if "ajuste_conf" not in st.session_state:
-    st.session_state.ajuste_conf = 0  # Ajuste adaptativo
+    st.session_state.prev_sinal = None
 if "resultado_registrado" not in st.session_state:
-    st.session_state.resultado_registrado = False  # Controle para bloquear botões após clicar
+    st.session_state.resultado_registrado = False
 
 # ===============================
 # CONFIGURAR BANCA E META
@@ -57,16 +55,8 @@ if st.session_state.balance is None:
         st.session_state.stop_loss = banca_inicial * 0.1
         st.session_state.valor_aposta = round((st.session_state.meta_periodo / 10) / (st.session_state.odd - 1), 2)
         st.session_state.resultado_registrado = False
-        st.success("Configuração salva com sucesso!")
         st.experimental_rerun()
     st.stop()
-else:
-    st.subheader("💵 Configuração atual")
-    st.write(f"- **Banca inicial:** R${st.session_state.balance:.2f}")
-    st.write(f"- **Meta diária:** R${st.session_state.meta_diaria:.2f}")
-    st.write(f"- **Meta período:** R${st.session_state.meta_periodo:.2f}")
-    st.write(f"- **Stop Loss:** R${st.session_state.stop_loss:.2f}")
-    st.write(f"- **Valor da aposta:** R${st.session_state.valor_aposta:.2f}")
 
 # ===============================
 # FUNÇÕES
@@ -122,9 +112,8 @@ def nivel_manipulacao(history):
 def gerar_previsao(history):
     probs = calcular_probabilidade(history)
     sorted_probs = sorted(probs.items(), key=lambda x: x[1], reverse=True)
-
     next_move, confidence = sorted_probs[0][0], round(sorted_probs[0][1], 2)
-    # IA adaptativa: ajuste baseado no último sinal falho
+
     if st.session_state.prev_sinal and st.session_state.prev_sinal != next_move:
         confidence = max(confidence - 5, 40)
 
@@ -179,7 +168,6 @@ draw_history_balls(st.session_state.history)
 
 # Botões registrar resultado
 st.subheader("🎮 Registrar Resultado")
-
 if not st.session_state.locked and not st.session_state.resultado_registrado:
     colb1, colb2, colb3 = st.columns(3)
     with colb1:
@@ -257,5 +245,4 @@ if st.button("🗑 Limpar Histórico"):
     st.session_state.locked = False
     st.session_state.prev_sinal = None
     st.session_state.resultado_registrado = False
-    st.success("Histórico e configurações reiniciados! Reconfigure banca e meta.")
     st.experimental_rerun()
