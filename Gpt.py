@@ -41,13 +41,13 @@ st.title("⚽ Painel Football Studio PRO")
 if st.session_state.balance is None:
     st.subheader("💵 Configure sua Banca Inicial")
     banca_inicial = st.number_input("Informe sua banca inicial (R$)", min_value=50.0, value=100.0, step=10.0)
-    if st.button("Confirmar Banca"):
+    if st.button("✅ Confirmar Banca"):
         st.session_state.balance = banca_inicial
         st.session_state.bank_chart = [banca_inicial]
-        st.session_state.meta_diaria = banca_inicial * 0.5  # meta = 50% da banca
+        st.session_state.meta_diaria = banca_inicial * 0.5  # Meta = 50% da banca
         st.session_state.meta_periodo = st.session_state.meta_diaria / 3
-        st.session_state.stop_loss = banca_inicial * 0.1  # stop = 10% da banca
-        st.success(f"Banca inicial definida: R${banca_inicial:.2f}")
+        st.session_state.stop_loss = banca_inicial * 0.1  # Stop = 10% da banca
+        st.experimental_rerun()  # 🔥 Atualiza para exibir o painel completo
     st.stop()
 
 # ===============================
